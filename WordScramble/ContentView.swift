@@ -12,10 +12,15 @@ struct ContentView: View {
     @State private var errorMessage = ""
     @State private var showingError = false
     
+    @State private var pointsStat = 0
+    
     
     var body: some View {
         
         NavigationStack {
+            
+                Text("Points: \(pointsStat)")
+            
             List {
                 Section {
                     TextField("Enter new word", text: $newWord)
@@ -25,13 +30,23 @@ struct ContentView: View {
                 Section {
                     ForEach(usedWords, id: \.self) { word in
                         HStack {
-                            Image(systemName: "\(word.count).circle")
-                            Text(word)
+                                Image(systemName: "\(word.count).circle")
+                                Text(word)
                         }
                     }
                 }
             }
+            
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("New Game") {
+                        startGame()
+                    }
+                }
+            }
+            
             .navigationTitle(rootWord)
+            
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
             .alert(errorTitle, isPresented: $showingError) {
@@ -44,7 +59,13 @@ struct ContentView: View {
     
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard answer.count > 0 else { return }
+        
+        guard answer.count > 3 else { return }
+        
+        guard isInitial(word: answer) else {
+            wordError(title: "Answer matches with initial word", message: "Be more original!")
+            return
+        }
         
         guard isOriginal(word: answer) else {
             wordError(title: "Word already used", message: "Be more original!")
@@ -57,9 +78,11 @@ struct ContentView: View {
         }
         
         guard isReal(word: answer) else {
-            wordError(title: "Word not recognized", message: "Yuo can not just make them up, you know!")
+            wordError(title: "Word not recognized", message: "You can not just make them up, you know!")
             return
         }
+        
+        pointsStat += answer.count
         
         withAnimation {
             usedWords.insert(answer, at: 0)
@@ -72,12 +95,19 @@ struct ContentView: View {
             if let startWords = try? String(contentsOf: startWordsURL) {
                 let allWords = startWords.components(separatedBy: "\n")
                 rootWord = allWords.randomElement() ?? "badword"
+                usedWords = []
+                pointsStat = 0
+                newWord = ""
                 return
             }
         }
         
         fatalError("Couldn't load start.txt from main bundle.")
         
+    }
+    
+    func isInitial(word: String) -> Bool {
+        word != rootWord
     }
     
     func isOriginal(word: String) -> Bool {
